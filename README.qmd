@@ -1,0 +1,671 @@
+---
+title: "Activity 6: Data wrangling 2: reshaping and summarizing data"
+subtitle: Jan. 26th, 2026, Calvin Munson
+format: gfm
+execute:
+  warning: false
+editor: source
+---
+
+# Overview
+
+Welcome! This is the second "data wrangling" lesson, which is about two
+topics: "reshaping" and "summarizing" data.
+
+### Reshaping:
+
+Some functions in R, whether for making graphs, running statistics, or
+even just running simple calculations, need your data to be in
+particular format, such as the "tidy" format that has come up a few
+times. Getting data into different formats is easy with `dplyr`
+functions.
+
+We will go over separate() and unite(), which separate and unite values
+in columns based on consistent separator characters (like "\_" or a
+space) and the pivot_wider() and pivot_longer() functions, which deal
+with pivoting data from columns into rows and vice versa.
+
+### Summarizing:
+
+Often we have groups in our data that we are interested in learning
+something about. For instance, in the last activity: what was the
+*average* weight of male vs female bison? Every observation was a bison,
+and we can ask R to group those rows by a column (`animal_sex`) and
+calculate a mean. We do this using the `group_by()` and `summarize()`
+functions.
+
+------------------------------------------------------------------------
+
+You will submit two outputs for this activity:
+
+1.  A **PDF** of a rendered Quarto document with all of your R code.
+    Please create a new Quarto document (e.g. don't use this
+    `README.qmd`), include all of the code that appears in this
+    document, in addition to adding your own code and **answers to all
+    of the questions** in the "Q#" sections. Submit this through
+    Gradescope.
+
+2.  A plot and your answers from the final "Energy production" section.
+    Submit that content to the google slide below:
+    <https://docs.google.com/presentation/d/1AJVu0eq5-OoRGi4UlBervrqKbFHOINvAB-8u0JaFzYM/edit?usp=sharing>
+
+*If you have trouble submitting as a PDF, please ask Calvin or Malin for
+help. If we still can't solve it, you can submit the .qmd file instead.*
+
+A reminder: **Please label the code** in your final submission in two
+ways: 1) denote your answers to each question using headers that
+correspond to the question you're answering and 2) thoroughly "comment"
+your code: remember, this means annotating your code directly by typing
+descriptions of what each line does after a `#`. This will help future
+you!
+
+------------------------------------------------------------------------
+
+Let's start by reading in the relevant packages
+
+```{r}
+library(tidyverse)
+library(here)
+
+```
+
+------------------------------------------------------------------------
+
+# 1. Whale populations
+
+This first section illustrates reshaping and summarizing data using a
+small, fake dataset that I created to more clearly illustrate what the
+functions are doing (sometimes it's hard to wrap our heads around things
+when the datasets are massive and largely out of view).
+
+Let's read in the data. This dataframe has 5 columns: a site/year
+combination column, an annual water temperature (Celsius) for that
+site/year, and population estimates for three species of whale: Gray,
+Humpback, and Blue. Note that the Blue whale survey didn't begin until
+2022, so there is *no data* in the 2021 cell.
+
+```{r}
+# Read in the data
+whale_popn_wide <- read_csv(here("data/whale_popn_wide.csv"))
+
+# Take a look at it
+whale_popn_wide
+```
+
+### Tangent: Column names in R
+
+Notice those slightly different quotations around the whale column
+names? R doesn't typically like anything but letters, numbers, "\_"s,
+and "."s in column names, meaning certain data reading functions will
+get a little angry if there are special characters, like spaces or
+parentheses, in column names. The tidyverse `read_csv()` function gets
+around this by putting the backticks (aka, grave accents, the ones
+probably in the top left of your keyboard under the tilde sign) around
+column names where it detects special characters in order to preserve
+those special characters. The whale column names have spaces, so
+whenever you reference them as a column, put those quotes around the
+name:
+
+```{r}
+## Weird `` column examples:
+# Ex. Fetch the data within one column
+whale_popn_wide$`Gray whale`
+
+# Ex. Plot Gray whale abundance vs Blue whale abundance
+whale_popn_wide %>% 
+  ggplot(aes(x = `Gray whale`,
+             y = `Blue whale`)) +
+  geom_point()
+```
+
+## 1.1 `separate()` one column into multiple
+
+The `separate()` function takes a handful of arguments:
+
+-   `data` = the dataframe you add
+
+-   `col` = the column name you want to separate
+
+-   `into` = a vectors of the names of the new columns that you want to
+    create
+
+-   `sep` = the separator between columns (can be a particular
+    character, such as "\_" or ".", or can be a number referencing
+    *where* to split)
+
+The first thing you may notice is that the `site_year` column is not
+very useful for us in this form; we should separate that into two
+columns, one with site and one with year. Notice that in that column,
+the separator that separates the site (Monterey) and the year (202X) is
+an underscore (`_`). Let's save this new dataframe as
+`whale_popn_wide.sep`.
+
+```{r}
+whale_popn_wide.sep <- whale_popn_wide %>% 
+  # Separate the site_year column
+  separate(col = site_year,
+           # Separate into two columns in this case
+           into = c("site", "year"),
+           # Separate by the "_"
+           sep = "_"
+  )
+
+# Now look at the data
+whale_popn_wide.sep
+```
+
+Now we have two new columns, where the underscore is removed!
+
+Note that the data reads in `year` as a `chr`, which means character -
+this is because we separated a character column (site_year) into two, so
+it stays as a character. Let's add on a mutate function to change `year`
+to a numeric column using `mutate()`
+
+```{r}
+whale_popn_wide.sep <- whale_popn_wide %>% 
+  # Separate the site_year column
+  separate(col = site_year,
+           # Separate into two columns in this case
+           into = c("site", "year"),
+           # Separate by the "_"
+           sep = "_"
+  ) %>% 
+  # Run the year column through the as.numeric() function and re-store that as year
+  mutate(year = as.numeric(year))
+
+# Now look at the data
+whale_popn_wide.sep
+```
+
+If we want to split simply by a position within the character string
+(e.g. 4 characters from the left) and not by a specific character (e.g.
+"\_"), we can put a number into the `sep =` argument. Positive values
+start at 1 at the far-left of the string; negative value start at -1 at
+the far-right of the string. This is useful if we have a column with a
+known, constant number of characters, each of which stands for certain
+information (as you'll see down in part 2...).
+
+```{r}
+whale_popn_wide %>% 
+  # Separate the site_year column
+  separate(col = site_year,
+           # Separate into two columns in this case
+           into = c("site", "year"),
+           # Separate by the "_"
+           sep = 4
+  )
+```
+
+------------------------------------------------------------------------
+
+## 1.2 `unite()` multiple columns into one
+
+The `unite()` function is simply the inverse of the separate column
+
+The `separate()` function takes a handful of arguments:
+
+-   `data` = the dataframe you add
+
+-   `col` = the name of the new column you want to unite columns into
+
+-   `...` = the names of the columns that you want to unite together
+
+-   `sep` = the separator to put between values
+
+Let's unite the site and year columns back together, but this time
+separate them by a comma and a space
+
+```{r}
+whale_popn_wide.sep %>% 
+  # Unite the site and year columns back into site_year
+  unite(col = site_year, # New col name is going to be site_year again
+        # Add in the existing columns that we want to unite together
+        site, year,
+        # Separate by a comma and space this time ", "
+        sep = ", "
+  )
+```
+
+------------------------------------------------------------------------
+
+## 1.3 Pivot to long format with `pivot_longer()`
+
+If we want to make a graph of the three whale species as colored lines
+or points, we need this data to be in "long" format. We need every row
+to be its own observation. Currently there are three observations per
+row: one for each species.
+
+```{r}
+whale_popn_wide.sep
+```
+
+To get this dataset into long format, we want it to be "pivoted", where
+there's a new column where the column names go to and a second column
+for the data values within the cells.
+
+The `pivot_longer()` function takes the arguments:
+
+-   `data` = Data
+
+-   `cols` = Columns that we want to pivot
+
+-   `names_to` = What new column we want the column **names** to go to
+
+-   `values_to` = What new column we want the cell **values** to go to
+
+Lets put the column names into a column called `species` and the values
+into a column called `population_size`, and name the new dataframe
+`whale_long`.
+
+```{r}
+# Pivot to long format
+whale_long <- whale_popn_wide.sep %>% 
+  # Take the columns we want to pivot
+  pivot_longer(cols = c(`Gray whale`, `Humpback whale`, `Blue whale`),
+               # Put the column names into a column called "species"
+               names_to = "species",
+               # Put the cell values into a column called "population_size"
+               values_to = "population_size")
+# Check out the data
+whale_long
+```
+
+Pay attention to how the data changes - note how when the data was wide,
+the 2021 values for Gray, Humpback, and Blue (0, 25, and NA) were
+horizontal, and when we pivot them, they are now vertical. The
+associated data (year, annual temp) gets duplicated to accommodate this
+pivot, and the column names have also been pivoted similarly so that every data point still has the associated data that it had
+before the pivot.
+
+You can also specify the columns you want to pivot by using the column number rather than the
+column name
+
+```{r}
+whale_popn_wide.sep %>% 
+  pivot_longer(cols = c(4:6), # c(4:6) creates a vector of the numbers 4 through 6, aka 4, 5, 6
+               names_to = "species",
+               values_to = "population_size")
+
+```
+
+You can also specify the columns you **DO NOT** want to pivot, and it will pivot all other columns. Do this by adding a minus sign in front of the c() that holds your column names:
+
+```{r}
+
+# Pivot to long format
+whale_popn_wide.sep %>% 
+  # Specify the columns we DON'T want to pivot
+  pivot_longer(cols = -c(site, year, annual_temp),
+               # Put the column names into a column called "species"
+               names_to = "species",
+               # Put the cell values into a column called "population_size"
+               values_to = "population_size")
+
+# Or:
+
+whale_popn_wide.sep %>% 
+  # Specify we DON'T want to pivot columns 1 through 3
+  pivot_longer(cols = -c(1:3), # c(1:3) creates a vector of the numbers 1 through 3, aka 1,2,3
+               names_to = "species",
+               values_to = "population_size")
+
+```
+
+
+
+Great! Now we can graph this data using ggplot!
+
+```{r}
+whale_long %>% 
+  ggplot(aes(x = year, y = population_size, color = species)) +
+  geom_point() +
+  geom_line()
+
+```
+
+------------------------------------------------------------------------
+
+## 1.4 Pivot to wide format with `pivot_wider()`
+
+`pivot_wider()` is simply the inverse of `pivot_longer()`. We tell it:
+
+-   `names_from` = which column to get the the values that will become
+    column names
+-   `values_from` = which column to get the the values that will become
+    cell values
+
+```{r}
+whale_long %>%
+  pivot_wider(names_from = species,
+              values_from = population_size)
+```
+
+------------------------------------------------------------------------
+
+## 1.5 `group_by()` and `summarize()` the whale populations
+
+Now let's say we want to *calculate an average population size for each
+whale species* across all survey years. Let's arrange the dataframe by
+species and then year to get a look at the data for each species.
+
+```{r}
+whale_long %>% arrange(species, year)
+```
+
+We can think of this dataframe as three separate dataframes stacked on
+top of one another: one for Blue whales, one for Gray whales, and one
+for Humpback whales.
+
+Conceptually, to get an average for each species, what we want is to
+take the average of all values in the `population_size` column separately for each
+of the three species. We can accomplish this using the very handy
+functions `group_by()` and `summarize()`
+
+`group_by()` tells R that you want to assign "groups" within your data.
+R then knows that all observations (rows) that have a shared value in the grouping column belong to that
+value's group. Let's try it out by using `species` as a grouping variable, making each unique species a group:
+
+```{r}
+whale_long %>% 
+  group_by(species)
+```
+
+What changed? Well, in the data, nothing! But notice at the top of
+the data frame, it tells you what column is being used as the group, as
+well as how many unique values there are (it should say `Groups: species[3]`,
+meaning there are 3 unique values in the `species` column that are
+grouping the data).
+
+If you would like to group by multiple columns, just add more column names into `group_by()`, separated by commas (remember this for part 2...)
+
+`group_by(col1, col2, etc)`
+
+--------
+
+The real functionality of `group_by()` comes once we use another
+function to modify this grouped data. Let's try it by using the `summarize()`
+function.
+
+`summarize()` takes a data table, typically a grouped data table, and
+summarizes an existing column to create a new column based on a function
+that you provide. It has a similar syntax as `mutate()`, where you have a
+new column equal the calculation you provide:
+
+`summarize(new_column = function(existing_column))`
+
+Let's now calculate a `mean()` of the `population_size` column, grouped
+by `species`, and call the new column `mean_pop`:
+
+```{r}
+whale_long %>% 
+  group_by(species) %>% 
+  summarize(mean_pop = mean(population_size))
+```
+
+The output is a dataframe with 3 rows - one for each grouping variable. `summarize()` took a mean of all 4 data points in the `population_size` column separately for each of the 3 species. Why is the Blue whale mean `NA`, though??
+
+### Tangent: NAs and missing data
+
+Let's look at the original data again, sorted by species:
+
+```{r}
+whale_long %>% arrange(species, year)
+```
+
+If you remember back at the beginning, I said that this fictitious set
+of surveys started in 2022 for the Blue whales, so there is no data in
+2021. R records missing data, or data cells that don't have values in them, as `NA`. Important note: **missing data is
+not the same as a zero**; there were 0 gray whales in 2021, but the
+value for Blue whales could have been 50, it could have been 0, or it
+could have been 50,000: we have no way of knowing because that data does
+not exist. It is very important to understand where you have missing
+data in your datasets and to deal with it appropriately. Here's
+how we will deal with the missing data:
+
+Why did R's `mean()` function calculate the mean of those 4 values,
+including NA, to be equal to NA? The mean of those three values that are
+present (55, 63, 66) should be \~61. R can't take a mean of a series of values where a value isn't a number. `NA`s are
+common in data though; we can get around the presence of the `NA` by
+changing an argument to the `mean()` function and saying `na.rm = TRUE`,
+which tells the function to remove any `NA`s before trying to do the
+calculation. The default is `FALSE`, meaning that `mean()` will not
+remove the `NA`s unless you tell it to. The same argument exists in
+other similar functions (e.g. `sum()`, `sd()`). Let's do that here:
+
+```{r}
+whale_long %>% 
+  group_by(species) %>% 
+  summarize(mean_pop = mean(population_size, na.rm = TRUE))
+```
+
+Great! Now we have the true Blue whale population mean across the three
+years. We can add additional calculated summary columns by adding a new line
+separated by a comma, just like in `mutate()`. Let's also calculate the
+standard deviation, which will give us a rough estimate of how variable
+the data is, using the `sd()` function:
+
+```{r}
+whale_long %>% 
+  group_by(species) %>% 
+  summarize(mean_pop = mean(population_size, na.rm = TRUE),
+            sd_pop = sd(population_size, na.rm = TRUE))
+```
+
+#### Q1.1 Which whale population is largest? Which is most variable?
+
+Using the summary statistics and the graph from earlier, which which
+whale population is largest? Which is most variable?
+
+------------------------------------------------------------------------
+
+# 2. Energy production
+
+![](energy.jpg)
+
+In the era of climate change, the production of energy through the
+burning of fossil fuels is on everyone's mind (well, not everyone,
+unfortunately...). How much of the energy that the U.S. produces is from
+fossil fuel sources? What about from renewable energy sources? The data
+for this worksheet contains information about energy production in the
+United States from as early as 1949 until present, and is divided up by
+energy source. The data was retrieved from the U.S. Energy Information
+Administration back in 2019 (https://www.eia.gov/totalenergy/data/annual/).
+
+I slightly modified the dataset from its original form, but purposefully
+left it somewhat messy - the cleaning of data is 90% of data science
+anyways!
+
+**Your goal in this section is to take a dataframe from "somewhat messy"
+to "clean and tidy" and produce two graphs of the US's energy production over
+time, separated by source of energy**. This is a longer and trickier section 2 than in previous activities. Along the way you will use many of the data wrangling and visualization tools that you've learned in the
+past few lessons. The questions in the section will ask you to complete
+specific tasks - make sure you complete them before moving on to the
+next question, and ask us if you get stuck!
+
+### Q2.1 Read in the data
+
+Read in the dataframe `US_energy.wide.csv` and store it as
+`US_energy.wide`
+
+```{r 1. set up}
+
+
+```
+
+------------------------------------------------------------------------
+
+### Q2.2 Explore the data
+
+#### Q2.2a) What are the column names of our dataframe?
+
+```{r 2a. explore}
+
+```
+
+#### Q2.2b) What unique values are located in the "YYYYMM" column?
+
+Run code to find the unique values in the YYYYMM column. What values do
+you think these represent?
+
+```{r 2b. explore}
+
+```
+
+#### Q2.2c) Are all the units in the "Unit" column the same?
+
+```{r 2c. explore}
+
+```
+
+------------------------------------------------------------------------
+
+### Q2.3 Separate the YYYYMM column
+
+According to the column name, the first four digits of each value are
+the year, while the last two digits are the month. Using the
+`separate()` function, create two new columns from the `YYYYMM` column:
+one with the `year` values, and one with the `month` values. Store the
+new dataframe to use later as `US_energy.sep`.
+
+Hint: Remember the two different ways you can separate a column using
+the "sep" argument. See the separate() help page for more info.
+
+Are the values in your two new columns numeric or character? If
+character, change them to numeric within a `mutate()` function before
+storing the new dataframe as `US_energy.sep`.
+
+```{r 2. separate}
+
+
+```
+
+------------------------------------------------------------------------
+
+### Q2.4 Filter for proper months
+
+Check out the unique values for "month" in this dataframe. What do you
+think month 13 represents? Let's remove it for now: Filter your
+dataframe to *exclude* rows where the month column is 13. Store the new
+dataframe as `US_energy.monthly` (Hint: `!=`)
+
+```{r}
+
+```
+
+--------
+
+
+### Q2.5 Divide the dataframe into two dataframes, representing different types of production
+
+It appears that there are two main types of production columns
+represented here: There are variables for specific energy production
+sources (e.g. `Coal Production`, `Wind Energy`) as well as variables for
+the overall broad energy categories of `Total Renewable Energy Production`,
+`Total Fossil Fuels Production`, and `Total Primary Energy Production`
+(which is the sum of the previous two). Since these two types of data
+might be confusing to display on the same graph, let's split the
+`US_energy.monthly` dataframe into the two types:
+
+**Create two new dataframes** based off of the `US_energy.monthly`
+data: 1) one dataframe named `specific_prod` which has the data for the
+specific production sources such as Coal, Crude Oil, Wind, etc, and 2) a
+second dataframe named `broad_prod` which has the data for the three
+broad production categories of: `Total Renewable Energy Production`,
+`Total Fossil Fuels Production`, and `Total Primary Energy Production`.
+Both dataframes should have the `year`, `month`, and `unit` columns as
+well.
+
+(Hint: `select()`)
+
+(remember that if there are spaces or other special characters in the
+column name, then you need those funky single quotations called backticks)
+
+```{r 5a. new dfs}
+
+
+```
+
+```{r 5b. new dfs}
+
+
+```
+
+
+------
+
+
+### Q2.6 Pivot those dataframe!
+
+Now that we have made good progress cleaning up our dataframes, let's
+pivot them into Tidy format to prepare for visualizations! We will have
+to repeat the pivoting for each of our new dataframes (both
+`specific_prod` and `broad_prod`).
+
+Pivot both dataframes so that the energy variable column names become values in a new column named `energy_source`. Name
+the new value column that values go to simply `production`. Name the new
+dataframes that you create `specific_prod.long` and `broad_prod.long`.
+
+Hint: Remember how to pivot by excluding
+
+```{r}
+
+```
+
+--------
+
+### Q2.7 Summarize by year and energy source
+
+Now we have two "long" dataframes where every observation (row) is the
+production of a given energy production type within a month of a given
+year. This means that every group of 1) energy source (e.g. Wind) and 2)
+year (e.g. 1973) has 12 values: one for each month. Let's `sum()` those
+values together so we can simply look at the amount of energy that each
+source produces across each year.
+
+Separately for each dataframe `broad_prod.long` and `specific_prod.long`,
+group the data by both `year` **and** `energy source` and sum up the values in
+the `production` column. Name the new dataframes `broad_prod_yearly` and
+`specific_prod_yearly`.
+
+```{r}
+
+
+```
+
+------------------------------------------------------------------------
+
+Time to create some graphs: customize the graphs in 2.8 and 2.9 as you see fit in order to create a clear and concise story.
+
+-------------
+
+### Q2.8 Plot broad energy production over time
+
+Let's start our data visualization party by answering: *how has the
+United States' broad energy production changed over time?* using the `broad_prod_yearly` dataframe we created. As a
+reminder, the energy sources in this dataframe are
+`Total Renewable Energy Production`, `Total Fossil Fuels Production`,
+and `Total Primary Energy Production`.
+
+Create code to produce the graph and include a couple sentences
+interpreting what you see from the graph.
+
+------------------------------------------------------------------------
+
+### Q2.9 Plot the production of specific energy sources over type
+
+Next, answer: *how have the various kinds of energy sources that the
+United States produces changed over time?* using the `specific_prod_yearly` dataframe.
+
+Create code to produce the graph and include a small paragraph (3-5
+sentences) interpreting what you see from the graph.
+
+------------------------------------------------------------------------
+
+### Q2.10 Export graphs
+
+Export both graphs and both interpretations to this slide deck:
+<https://docs.google.com/presentation/d/1AJVu0eq5-OoRGi4UlBervrqKbFHOINvAB-8u0JaFzYM/edit?usp=sharing>
+
+### Render to PDF
+
+And submit the well-labeled PDF on Gradescope. Thanks!
