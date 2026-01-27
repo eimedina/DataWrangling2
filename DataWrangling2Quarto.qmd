@@ -197,6 +197,15 @@ unique(US_energy.wide$YYYYMM)
 ```{r}
 #No there are years and months lets separate
 
+library(janitor)
+
+US_energy.wide %>% 
+  clean_names() %>% 
+  mutate(yyyymm = as.character(yyyymm), .keep = "unused") %>% 
+  relocate(yyyymm) %>% 
+  separate(col = yyyymm, into = c("yyyy", "mm"), 4) %>% 
+  head()
+
  
 separate(US_energy.wide, col = YYYYMM, 
            into = c("YYYY", "MM"), 
