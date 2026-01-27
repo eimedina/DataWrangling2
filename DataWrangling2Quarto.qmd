@@ -179,3 +179,26 @@ whale_long %>%
 ```{r}
 US_energy.wide <- read_csv("data/US_energy.wide.csv")
 ```
+
+##Q2.2a What are the column names of our dataframe?
+
+```{r}
+names(US_energy.wide)
+```
+
+#### Q2.2b) What unique values are located in the "YYYYMM" column?
+
+```{r}
+unique(US_energy.wide$YYYYMM)
+```
+
+#### Q2.2c) Are all the units in the "Unit" column the same?
+
+```{r}
+#No there are years and months lets separate
+
+ 
+separate(US_energy.wide, col = YYYYMM, 
+           into = c("YYYY", "MM"), 
+           sep = 4)
+```
