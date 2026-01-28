@@ -314,3 +314,5 @@ p +
                         c("fossil fuels", "primary fuels", "renewable technologies")) +
   theme_bw()
 ```
+
+#### In the United States annual energy production has been increasing over time. This is true for both renewable and fossil fuels, though fossil fuel energy production has been growing at a faster rate. 
