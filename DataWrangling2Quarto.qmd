@@ -316,3 +316,38 @@ p +
 ```
 
 #### In the United States annual energy production has been increasing over time. This is true for both renewable and fossil fuels, though fossil fuel energy production has been growing at a faster rate. 
+
+### Q2.9 Plot the production of specific energy sources over type
+
+```{r}
+p2 <-
+  specific_prod_yearly %>% 
+  filter(yyyy < 2020) %>%
+  ggplot(aes(yyyy, annual_production, color = source)) + 
+  geom_line()
+
+# add details...
+p2 + 
+  xlab("year") +
+  ylab("annual production (quadrillion BTUs)") +
+  labs(color = "source") +
+  scale_color_discrete(
+    labels = c(
+      "biomass_energy_production" = "biomass",
+      "coal_production" = "coal",
+      "crude_oil_production" = "crude oil",
+      "geothermal_energy_production" = "geothermal energy",
+      "hydroelectric_power_production" = "hydroelectric",
+      "natural_gas_dry_production" = "natural gas dry",
+      "natural_gas_plant_liquids_production" = "natural gas liquid",
+      "nuclear_electric_power_production" = "nuclear electric",
+      "solar_energy_production" = "solar energy",
+      "wind_energy_production" = "wind energy"
+    )
+  ) +
+  theme_bw()
+
+
+```
+
+#### In the past \~45 years there have been many changes in energy production in the United States. The most produced sources include crude oil, coal, and natural gas dry. In 2010 coal production has lowered while natural gas and crude oil production have had steep growth since 2010. 
