@@ -296,12 +296,15 @@ broad_prod_yearly
 
 ```{r}
 # Calvin noted that there was a prob w the data for 2020, so let's end the time series at 2019
+
+# generate basic line plot...but what is the primary energy production? I changed this to primary fuels but don't think this is correct
 p <-
   broad_prod_yearly %>% 
   filter(yyyy < 2020) %>%
   ggplot(aes(yyyy, annual_production, color = source)) + 
   geom_line()
 
+# add details...
 p + 
   xlab("year") +
   ylab("annual production (quadrillion BTUs)") +
