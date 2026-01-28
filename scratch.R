@@ -42,3 +42,9 @@ whales.long[3,4] <- 40
 whales.long
 
 whales.long %>% grouped_mean('SPECIES_CODE', 'NUMBER_FISH')
+
+# 'for' loops -----
+for (i in 1:10) {
+  print(i)
+}
+  

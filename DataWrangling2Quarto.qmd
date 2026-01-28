@@ -276,14 +276,38 @@ head(broad_prod.long)
 specific_prod_yearly <-
   specific_prod.long %>% 
   group_by(yyyy, source) %>% 
-  summarise(annual_production = sum(production))
+  summarise(annual_production = sum(production)) %>% 
+  mutate(yyyy = as.integer(yyyy),
+         source = as.factor(source))
 
 broad_prod_yearly <- 
   broad_prod.long %>% 
   group_by(yyyy, source) %>% 
-  summarise(annual_production = sum(production))  
+  summarise(annual_production = sum(production)) %>% 
+  mutate(yyyy = as.integer(yyyy),
+         source = as.factor(source))
 
 # check!
 specific_prod_yearly
 broad_prod_yearly
+```
+
+### Q2.8 Plot broad energy production over time
+
+```{r}
+# Calvin noted that there was a prob w the data for 2020, so let's end the time series at 2019
+p <-
+  broad_prod_yearly %>% 
+  filter(yyyy < 2020) %>%
+  ggplot(aes(yyyy, annual_production, color = source)) + 
+  geom_line()
+
+p + 
+  xlab("year") +
+  ylab("annual production (quadrillion BTUs)") +
+  labs(color = "energy source") +
+  scale_color_manual(values = c("darkred", "darkgreen", "darkblue"),
+                     labels = 
+                        c("fossil fuels", "primary fuels", "renewable technologies")) +
+  theme_bw()
 ```
